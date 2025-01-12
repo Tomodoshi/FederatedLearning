@@ -1,0 +1,8 @@
+/src/data
+/src/__pycache__/
+.venv/
+.vscode/
+Dockerfile
+test.py
+.dockerignore
+requirements.txt
