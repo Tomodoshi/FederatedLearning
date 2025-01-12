@@ -1,3 +1,5 @@
+.gitignore
+.DS_Store
 /src/data
 /src/__pycache__/
 .venv/
