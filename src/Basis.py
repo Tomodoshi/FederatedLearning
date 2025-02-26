@@ -3,6 +3,19 @@ import numpy as np
     
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.mps.is_available() else "cpu")
 
+CIFAR10_LABELS = {
+    0: "airplane",
+    1: "automobile",
+    2: "bird",
+    3: "cat",
+    4: "deer",
+    5: "dog",
+    6: "frog",
+    7: "horse",
+    8: "ship",
+    9: "truck"
+}
+
 def trainModel(model, trainloader, optimizer, loss_fn, epochs=2, verbose=False):
     print("Training model")
     model.train()
@@ -34,27 +47,28 @@ def trainModel(model, trainloader, optimizer, loss_fn, epochs=2, verbose=False):
                 
     print('Finished Training')
     
-def evaluateModel(model, testloader, loss_fn):
+def evaluateModel(model, params, loss_fn):
     print("Evaluating model")
     model.eval()
     correct = 0
     total = 0
     running_loss = 0.0
-    with torch.no_grad():
-        for batch in testloader:
-            inputs, labels = batch[0].to(DEVICE), batch[1].to(DEVICE)
+    with torch.inference_mode():
+        for inputs, labels in params:
+            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
             outputs = model(inputs)
             _, predicted = torch.max(outputs, 1)
+
             running_loss += loss_fn(outputs, labels).item()
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     accuracy = correct / total
-    return running_loss/len(testloader.dataset), accuracy
+    return running_loss/len(params.dataset), accuracy
 
 def saveModel(model, path):
     torch.save(model.state_dict(), path)
     
-def load_datasets(BATCH_SIZE: int):
+def load_datasets(BATCH_SIZE: int, object_names: list = None):
     #Define the transformation for the images
     transform = transforms.Compose([
         transforms.RandomHorizontalFlip(),
@@ -64,8 +78,18 @@ def load_datasets(BATCH_SIZE: int):
     ])
     
     train_dataset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-    trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=2)
-
     test_dataset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
-    testloader = torch.utils.data.DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=2)
+    
+    if object_names:
+        class_to_idx = {label: idx for idx, label in enumerate(train_dataset.classes)}
+        selected_classes = {class_to_idx[name] for name in object_names if name in class_to_idx}
+
+        train_indices = [i for i, (_, label) in enumerate(train_dataset) if label in selected_classes]
+        test_indices = [i for i, (_, label) in enumerate(test_dataset) if label in selected_classes]
+
+        train_dataset = torch.utils.data.Subset(train_dataset, train_indices)
+        test_dataset = torch.utils.data.Subset(test_dataset, test_indices)
+        
+    trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
+    testloader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
     return trainloader, testloader

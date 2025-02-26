@@ -2,9 +2,8 @@ from typing import List, Tuple
 from flwr.common import Metrics
 from flwr.server.strategy import FedAvg, FedProx
 
+import argparse
 import flwr as fl
-
-STRATEGY = "FedAvg"  # <-- Change this to "FedAvg" or "FedProx" to use different strategies
 
 # Define custom metric aggregation function
 
@@ -21,17 +20,17 @@ def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
 
 fraction_fit = 0.8  # Fraction of clients used during training
 fraction_evaluate = 0.5  # Fraction of clients used during validation
-min_fit_clients = 3  # Minimum number of clients used during training
+min_fit_clients = 2  # Minimum number of clients used during training
 min_evaluate_clients = 2  # Minimum number of clients used during validation
-min_available_clients = 3  # Minimum number of clients available for training
+min_available_clients = 2  # Minimum number of clients available for training
 evaluate_metrics_aggregation_fn = (
     weighted_average  # <-- pass the metric aggregation function
 )
 
 
-def main():
+def startServer(Strat):
 
-    if STRATEGY == "FedAvg":
+    if Strat == "FedAvg":
         strategy = FedAvg(
             fraction_fit=fraction_fit,
             fraction_evaluate=fraction_evaluate,
@@ -59,4 +58,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    
+    parser = argparse.ArgumentParser(description="Configure model aggrigation strategy .")
+    parser.add_argument("strategy", choices=["FedAvg", "FedProx"], help="Choose aggregation strategy: Federated Avgeraging[FedAvg] or Federated Optimization[FedProx]")
+    args = parser.parse_args()
+    
+    print(f"Starting server with {args.strategy} strategy")
+    startServer(args.strategy)
