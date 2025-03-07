@@ -1,3 +1,5 @@
+from torch import nn
+
 import torch, torchvision, torchvision.transforms as transforms
 import numpy as np
     
@@ -15,6 +17,8 @@ CIFAR10_LABELS = {
     8: "ship",
     9: "truck"
 }
+
+CIFAR10_LABELS_REVERSED = {v: k for k, v in CIFAR10_LABELS.items()}
 
 def trainModel(model, trainloader, optimizer, loss_fn, epochs=2, verbose=False):
     print("Training model")
@@ -62,7 +66,7 @@ def evaluateModel(model, params, loss_fn):
             running_loss += loss_fn(outputs, labels).item()
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-    accuracy = correct / total
+    accuracy = correct / total if total > 0 else 0.0
     return running_loss/len(params.dataset), accuracy
 
 def saveModel(model, path):
@@ -93,3 +97,36 @@ def load_datasets(BATCH_SIZE: int, object_names: list = None):
     trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
     testloader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
     return trainloader, testloader
+
+def evaluate_per_class(model, dataloader):
+    model.eval()
+    correct = {label: 0 for label in CIFAR10_LABELS}
+    total = {label: 0 for label in CIFAR10_LABELS}
+
+    loss_fn = nn.CrossEntropyLoss()
+    total_loss = 0
+    total_correct = 0
+    total_samples = 0
+
+    with torch.no_grad():
+        for images, labels in dataloader:
+            images, labels = images.to(DEVICE), labels.to(DEVICE)
+            outputs = model(images)
+            loss = loss_fn(outputs, labels)
+            total_loss += loss.item()
+
+            _, preds = torch.max(outputs, 1)
+            for i, label in enumerate(labels):
+                class_name = CIFAR10_LABELS[label.item()]
+                class_index = CIFAR10_LABELS_REVERSED.get(class_name, None)
+                correct[class_index] += (preds[i] == label).item()
+                total[class_index] += 1
+
+
+            
+            total_correct += (preds == labels).sum().item()
+            total_samples += labels.size(0)
+
+    overall_accuracy = total_correct / total_samples if total_samples > 0 else 0.0
+    class_accuracies = {cls: (correct[cls] / total[cls] * 100 if total[cls] > 0 else 0.0) for cls in CIFAR10_LABELS}
+    return total_loss / len(dataloader), overall_accuracy, class_accuracies

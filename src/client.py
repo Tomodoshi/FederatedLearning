@@ -1,4 +1,4 @@
-from Basis import trainModel, evaluateModel, load_datasets, CIFAR10_LABELS
+from Basis import trainModel, evaluateModel, load_datasets,evaluate_per_class, CIFAR10_LABELS, CIFAR10_LABELS_REVERSED
 from flwr.common import Context
 from torchvision.models import resnet18
 from flwr.client import NumPyClient
@@ -14,10 +14,11 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.mp
 BATCH_SIZE = 32
 
 class FlowerClient(NumPyClient):
-    def __init__(self, model, trainloader, testloader, DEVICE=DEVICE):
+    def __init__(self, model, trainloader, testloader, full_testloader, DEVICE=DEVICE):
         self.model = model
         self.train_loader = trainloader
         self.test_loader = testloader
+        self.full_test_loader = full_testloader
         self.loss_fn = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
         
@@ -35,28 +36,17 @@ class FlowerClient(NumPyClient):
     
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
-        loss, accuaracy = evaluateModel(self.model, self.test_loader, loss_fn=self.loss_fn)
-        _, completeTestDataset = load_datasets(1)
-        seen_classes = set()    # Track seen classes to get 10 samples from each class
         
-        with torch.inference_mode():
-            sm = torch.nn.Softmax(dim=1)
-            for input, label in completeTestDataset:
-                class_id = label.item()
-                if class_id in seen_classes:
-                    continue    # Skip if class has already been processed
-                
-                seen_classes.add(class_id)  # Mark class as seen
-                input= input.to(DEVICE)
-                predictions = sm(self.model(input))
-                predicted_class = predictions.argmax(dim=1).item()
-                confidence = predictions[0, predicted_class].item()
-                if len(seen_classes) == len(CIFAR10_LABELS):  # Stop when all classes are seen
-                    break
-            
-            print(f"Class: {CIFAR10_LABELS.get(label.item(), 'Unknown')}, "
-                  f"Prediction: {CIFAR10_LABELS.get(predicted_class, 'Unknown')}, "
-                  f"Probability: {confidence:.4f}")
+        #Local dataset
+        loss, accuaracy = evaluateModel(self.model, self.test_loader, loss_fn=self.loss_fn)
+        
+        local_loss, local_accuracy, local_class_accuracies = evaluate_per_class(self.model, self.full_test_loader)
+        
+        print(f"Local Accuracy: {accuaracy}")
+        print("\n Class-wise Accuracies (Local model):")
+        for label, acc in local_class_accuracies.items():
+            print(f"  {label}: {acc:.4f}")
+        
         return loss, len(self.test_loader), {"accuracy": accuaracy}
     
 
@@ -68,7 +58,7 @@ def startClient():
     fl.common.logger.configure("DEBUG")
     fl.client.start_client(
         server_address="0.0.0.0:25565",
-        client=FlowerClient(model, trainloader, testloader).to_client(),
+        client=FlowerClient(model, trainloader, testloader, full_testloader).to_client(),
     )
 
 
@@ -76,6 +66,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Load CIFAR-10 dataset with selected objects.")
     parser.add_argument("objects", nargs="+", help="List of object names to filter (e.g., cat dog airplane)")
     args = parser.parse_args()
+    
+    class_labels = list(CIFAR10_LABELS.values())
+    
+    _, full_testloader = load_datasets(BATCH_SIZE, class_labels)
     trainloader, testloader = load_datasets(BATCH_SIZE, args.objects)
     
     print(f"Loaded dataset with classes: {args.objects}")

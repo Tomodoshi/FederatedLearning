@@ -4,10 +4,15 @@ from flwr.server.strategy import FedAvg, FedProx
 
 import argparse
 import flwr as fl
+import json
 
 # Define custom metric aggregation function
 
-
+def save_results(results: dict, filename: str = "results.txt"):
+    with open(filename, "w") as f:
+        json.dump(results, f, indent=4) 
+    print(f"Final results saved to {filename}")
+    
 def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
     # Multiply accuracy of each client by number of examples used
     accuracies = [num_examples * m["accuracy"] for num_examples, m in metrics]
@@ -52,9 +57,12 @@ def startServer(Strat):
 
     config = fl.server.ServerConfig(num_rounds=5)
 
-    fl.server.start_server(
+    history = fl.server.start_server(
         server_address="0.0.0.0:25565", strategy=strategy, config=config
     )
+    
+    if history and history.metrics_centralized:
+        save_results(history.metrics_centralized)
 
 
 if __name__ == "__main__":
