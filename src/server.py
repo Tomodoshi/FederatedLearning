@@ -58,7 +58,7 @@ def startServer(Strat, min_clients):
     config = fl.server.ServerConfig(num_rounds=5)
 
     history = fl.server.start_server(
-        server_address="0.0.0.0:25565", strategy=strategy, config=config
+        server_address="localhost:25565", strategy=strategy, config=config
     )
     
     if history and history.metrics_centralized:

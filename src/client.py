@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.mps.is_available() else "cpu")
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 
 class FlowerClient(NumPyClient):
     def __init__(self, model, trainloader, testloader, full_testloader, DEVICE=DEVICE):
@@ -31,9 +31,10 @@ class FlowerClient(NumPyClient):
             
     def fit(self, parameters, config):
         self.set_parameters(parameters)
-        trainModel(self.model, self.train_loader, self.optimizer, self.loss_fn, epochs=1, verbose=True)
-        local_loss, local_accuracy, local_class_accuracies = evaluate_per_class(self.model, self.full_test_loader)
-        print("\n Class-wise Accuracies (Local model) pre-aggrigation:")
+        trainModel(self.model, self.train_loader, self.optimizer, self.loss_fn, epochs=5, verbose=True)
+        local_class_accuracies = evaluate_per_class(self.model, self.full_test_loader)
+        print(f"\n Local classes:{args.objects}")
+        print("Class-wise Accuracies (Local model) pre-aggrigation:")
         for label, acc in local_class_accuracies.items():
             print(f"  {CIFAR10_LABELS.get(label)}: {acc:.2f}")
 
@@ -45,10 +46,10 @@ class FlowerClient(NumPyClient):
         #Local dataset
         loss, accuaracy = evaluateModel(self.model, self.test_loader, loss_fn=self.loss_fn)
         
-        local_loss, local_accuracy, local_class_accuracies = evaluate_per_class(self.model, self.full_test_loader)
+        local_class_accuracies = evaluate_per_class(self.model, self.full_test_loader)
         
-        print(f"Local classes:{args.objects}")
-        print("\n Class-wise Accuracies (Local model) post-aggrigation:")
+        print(f"\n Local classes:{args.objects}")
+        print("Class-wise Accuracies (Local model) post-aggrigation:")
         for label, acc in local_class_accuracies.items():
             print(f"  {CIFAR10_LABELS.get(label)}: {acc:.2f}")
         
@@ -62,7 +63,7 @@ def startClient():
     # Return Client instance
     fl.common.logger.configure("DEBUG")
     fl.client.start_client(
-        server_address="0.0.0.0:25565",
+        server_address="localhost:25565",
         client=FlowerClient(model, trainloader, testloader, full_testloader).to_client(),
     )
 

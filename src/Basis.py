@@ -129,4 +129,4 @@ def evaluate_per_class(model, dataloader):
 
     overall_accuracy = total_correct / total_samples if total_samples > 0 else 0.0
     class_accuracies = {cls: (correct[cls] / total[cls] * 100 if total[cls] > 0 else 0.0) for cls in CIFAR10_LABELS}
-    return total_loss / len(dataloader), overall_accuracy, class_accuracies
+    return class_accuracies
