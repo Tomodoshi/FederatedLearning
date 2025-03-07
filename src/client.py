@@ -32,6 +32,11 @@ class FlowerClient(NumPyClient):
     def fit(self, parameters, config):
         self.set_parameters(parameters)
         trainModel(self.model, self.train_loader, self.optimizer, self.loss_fn, epochs=1, verbose=True)
+        local_loss, local_accuracy, local_class_accuracies = evaluate_per_class(self.model, self.full_test_loader)
+        print("\n Class-wise Accuracies (Local model) pre-aggrigation:")
+        for label, acc in local_class_accuracies.items():
+            print(f"  {CIFAR10_LABELS.get(label)}: {acc:.2f}")
+
         return self.get_parameters(config), len(self.train_loader.dataset), {}
     
     def evaluate(self, parameters, config):
@@ -42,10 +47,10 @@ class FlowerClient(NumPyClient):
         
         local_loss, local_accuracy, local_class_accuracies = evaluate_per_class(self.model, self.full_test_loader)
         
-        print(f"Local Accuracy: {accuaracy}")
-        print("\n Class-wise Accuracies (Local model):")
+        print(f"Local classes:{args.objects}")
+        print("\n Class-wise Accuracies (Local model) post-aggrigation:")
         for label, acc in local_class_accuracies.items():
-            print(f"  {label}: {acc:.4f}")
+            print(f"  {CIFAR10_LABELS.get(label)}: {acc:.2f}")
         
         return loss, len(self.test_loader), {"accuracy": accuaracy}
     

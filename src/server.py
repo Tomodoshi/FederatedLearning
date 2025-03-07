@@ -23,8 +23,8 @@ def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
     return {"accuracy": round(accuracy, 4)}
 
 
-fraction_fit = 0.8  # Fraction of clients used during training
-fraction_evaluate = 0.5  # Fraction of clients used during validation
+fraction_fit = 1  # Fraction of clients used during training
+fraction_evaluate = 1  # Fraction of clients used during validation
 min_fit_clients = 2  # Minimum number of clients used during training
 min_evaluate_clients = 2  # Minimum number of clients used during validation
 min_available_clients = 2  # Minimum number of clients available for training
@@ -33,24 +33,24 @@ evaluate_metrics_aggregation_fn = (
 )
 
 
-def startServer(Strat):
+def startServer(Strat, min_clients):
 
     if Strat == "FedAvg":
         strategy = FedAvg(
             fraction_fit=fraction_fit,
             fraction_evaluate=fraction_evaluate,
-            min_fit_clients=min_fit_clients,
-            min_evaluate_clients=min_fit_clients,
-            min_available_clients=min_available_clients,
+            min_fit_clients=min_clients,
+            min_evaluate_clients=min_clients,
+            min_available_clients=min_clients,
             evaluate_metrics_aggregation_fn=weighted_average,
         )
     else:
         strategy = FedProx(
             fraction_fit=fraction_fit,
             fraction_evaluate=fraction_evaluate,
-            min_fit_clients=min_fit_clients,
-            min_evaluate_clients=min_fit_clients,
-            min_available_clients=min_available_clients,
+            min_fit_clients=min_clients,
+            min_evaluate_clients=min_clients,
+            min_available_clients=min_clients,
             evaluate_metrics_aggregation_fn=weighted_average,
             proximal_mu=0.2,
         )
@@ -66,10 +66,13 @@ def startServer(Strat):
 
 
 if __name__ == "__main__":
-    
-    parser = argparse.ArgumentParser(description="Configure model aggrigation strategy .")
-    parser.add_argument("strategy", choices=["FedAvg", "FedProx"], help="Choose aggregation strategy: Federated Avgeraging[FedAvg] or Federated Optimization[FedProx]")
+    parser = argparse.ArgumentParser(description="Configure Federated Learning Server.")
+
+    parser.add_argument("strategy", choices=["FedAvg", "FedProx"], help="Choose aggregation strategy: Federated Averaging [FedAvg] or Federated Optimization [FedProx]")
+    parser.add_argument("min_clients", type=int, default=2, help="Minimum number of clients used during training")
+
     args = parser.parse_args()
+
+    print(f"Starting server with {args.strategy} strategy and minimum {args.min_clients} clients")
     
-    print(f"Starting server with {args.strategy} strategy")
-    startServer(args.strategy)
+    startServer(args.strategy, args.min_clients)

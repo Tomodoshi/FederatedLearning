@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # This script is used to run the server and clients in parallel.
-NUMBER_OF_CLIENTS=$1
-SERVER_STRATEGY=$2
+NUMBER_OF_CLIENTS=$2
+SERVER_STRATEGY=$1
 
 PROJECT_PATH=$(pwd)
 VENV_ACTIVATE_PATH=".venv/bin/activate"
@@ -12,7 +12,7 @@ CIFAR10_CLASSES=("airplane" "automobile" "bird" "cat" "deer" "dog" "frog" "horse
 
 if [[ $OS_TYPE == "Darwin" ]]; then
     echo "Entered loop"
-    osascript -e "tell application \"Terminal\" to do script \"cd $PROJECT_PATH && source $VENV_ACTIVATE_PATH && python src/server.py '$SERVER_STRATEGY'\""
+    osascript -e "tell application \"Terminal\" to do script \"cd $PROJECT_PATH && source $VENV_ACTIVATE_PATH && python src/server.py '$SERVER_STRATEGY' '$NUMBER_OF_CLIENTS'\""
     osascript -e 'tell application "Terminal" to activate'
 
     for ((i=1 ; i<=NUMBER_OF_CLIENTS ; i++)); do
